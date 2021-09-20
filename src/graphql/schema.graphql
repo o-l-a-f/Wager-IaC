@@ -1,0 +1,53 @@
+type Bet {
+    completed: Boolean!
+    createDate: String!
+    description: String!
+    id: ID!
+    maker: String!
+    odds: String!
+    taker: String!
+    title: String!
+    value: Float!
+}
+
+input BetInput {
+    completed: Boolean!
+    createDate: String!
+    description: String!
+    id: ID!
+    maker: String!
+    odds: String!
+    taker: String!
+    title: String!
+    value: Float!
+}
+
+input UpdateBetInput {
+    completed: Boolean
+    createDate: String
+    description: String
+    id: ID!
+    odds: String
+    title: String
+    value: Float
+}
+
+type Query {
+    getBetById(betId: String!): Bet
+    listBets: [Bet]
+}
+
+type Mutation {
+    createBet(bet: BetInput!): Bet
+    updateBet(bet: UpdateBetInput!): Bet
+    deleteBet(betId: String!): String
+}
+
+type Subscription {
+    onCreateBet: Bet
+    @aws_subscribe(mutations: ["createBet"])
+    onDeleteBet: String
+    @aws_subscribe(mutations: ["deleteBet"])
+    onUpdateBet: Bet
+    @aws_subscribe(mutations: ["updateBet"])
+}
