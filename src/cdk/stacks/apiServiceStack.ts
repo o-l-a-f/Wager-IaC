@@ -6,7 +6,7 @@ import {CfnFunction, Code, Function, Runtime} from "@aws-cdk/aws-lambda";
 
 const ENV = "Dev";
 
-export class AppStack extends Stack {
+export class ApiServiceStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
