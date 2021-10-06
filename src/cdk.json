@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/src.ts",
+  "app": "npx ts-node --prefer-ts-exts dist/cdk/cdk/app",
   "context": {
     "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
     "@aws-cdk/core:newStyleStackSynthesis": true,
@@ -15,5 +15,6 @@
     "@aws-cdk/aws-efs:defaultEncryptionAtRest": true,
     "@aws-cdk/aws-lambda:recognizeVersionProps": true,
     "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true
-  }
+  },
+  "output": "build/cdk.out"
 }
