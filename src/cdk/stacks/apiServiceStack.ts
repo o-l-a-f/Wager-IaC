@@ -41,7 +41,11 @@ export class ApiServiceStack extends Stack {
       runtime: lambda.Runtime.NODEJS_LATEST,
       handler: "main.handler",
       code: lambda.Code.fromAsset("./lambda"),
-      memorySize: 1024
+      memorySize: 1024,
+      role: new iam.Role(this, "BetsHandlerLambdaRole", {
+        assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+        managedPolicies: [ iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonDynamoDBFullAccess") ]
+      })
     });
     const cfnLambda = betHandlingLambda.node.defaultChild as lambda.CfnFunction;
     cfnLambda.overrideLogicalId(`BetsHandler${AppStage.DEV}`);
@@ -49,11 +53,6 @@ export class ApiServiceStack extends Stack {
     // Set the new Lambda function as a data source for the AppSync API
     const lambdaDataSource = api.addLambdaDataSource("lambdaDatasource", betHandlingLambda);
     ResolverConfigs.map(config => lambdaDataSource.createResolver(`${config.fieldName}-resolver`, config))
-
-    // Grant Dynamo access to Lambda Function
-    betHandlingLambda.role!
-        .addManagedPolicy(iam.ManagedPolicy
-            .fromManagedPolicyName(this, "DynamoManagedPolicy", "AmazonDynamoDBFullAccess"));
 
     const betsDBTable = new dynamodb.Table(this, "BetsTable", {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
