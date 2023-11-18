@@ -1,84 +1,69 @@
-import {AuthorizationType, CfnGraphQLApi, GraphqlApi, Schema} from "@aws-cdk/aws-appsync";
-import {Construct, Stack, StackProps} from "@aws-cdk/core";
-import {AttributeType, BillingMode, CfnTable, Table} from "@aws-cdk/aws-dynamodb";
-import {PolicyStatement} from "@aws-cdk/aws-iam";
-import {CfnFunction, Code, Function, Runtime} from "@aws-cdk/aws-lambda";
+import {
+  aws_appsync as appsync,
+  aws_dynamodb as dynamodb,
+  aws_iam as iam,
+  aws_lambda as lambda,
+  Stack,
+  StackProps
+} from "aws-cdk-lib";
+import { Construct } from "constructs";
+import { AppStage } from "../config";
 
-const ENV = "Dev";
+type ResolverConfig = {
+  fieldName: string
+  typeName: string
+}
+
+const ResolverConfigs: ResolverConfig[] = [
+  { fieldName: "getBetById", typeName: "Query" },
+  { fieldName: "listBets", typeName: "Query" },
+  { fieldName: "createBet", typeName: "Mutation" },
+  { fieldName: "deleteBet", typeName: "Mutation" },
+  { fieldName: "updateBet", typeName: "Mutation" }
+]
 
 export class ApiServiceStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const api = new GraphqlApi(this, "Api", {
+    const api = new appsync.GraphqlApi(this, "Api", {
       name: "wager-appsync-api",
-      schema: Schema.fromAsset("graphql/schema.graphql"),
+      schema: appsync.SchemaFile.fromAsset("graphql/schema.graphql"),
       authorizationConfig: {
-        defaultAuthorization: {
-          authorizationType: AuthorizationType.API_KEY
-        },
+        defaultAuthorization: { authorizationType: appsync.AuthorizationType.API_KEY }
       },
-      xrayEnabled: true,
+      xrayEnabled: true
     });
-    const cfnApi = api.node.defaultChild as CfnGraphQLApi;
-    cfnApi.overrideLogicalId(`WagerApi${ENV}`);
+    const cfnApi = api.node.defaultChild as appsync.CfnGraphQLApi;
+    cfnApi.overrideLogicalId(`WagerApi${AppStage.DEV}`);
 
-    const betHandlingLambda = new Function(this, 'BetsHandler', {
-      runtime: Runtime.NODEJS_12_X,
+    const betHandlingLambda = new lambda.Function(this, "BetsHandler", {
+      runtime: lambda.Runtime.NODEJS_LATEST,
       handler: "main.handler",
-      code: Code.fromAsset("./lambda"),
+      code: lambda.Code.fromAsset("./lambda"),
       memorySize: 1024
     });
-    const cfnLambda = betHandlingLambda.node.defaultChild as CfnFunction;
-    cfnLambda.overrideLogicalId(`BetsHandler${ENV}`);
+    const cfnLambda = betHandlingLambda.node.defaultChild as lambda.CfnFunction;
+    cfnLambda.overrideLogicalId(`BetsHandler${AppStage.DEV}`);
 
     // Set the new Lambda function as a data source for the AppSync API
     const lambdaDataSource = api.addLambdaDataSource("lambdaDatasource", betHandlingLambda);
-    lambdaDataSource.createResolver({
-      typeName: "Query",
-      fieldName: "getBetById"
-    });
-    lambdaDataSource.createResolver({
-      typeName: "Query",
-      fieldName: "listBets"
-    });
-    lambdaDataSource.createResolver({
-      typeName: "Mutation",
-      fieldName: "createBet"
-    });
-    lambdaDataSource.createResolver({
-      typeName: "Mutation",
-      fieldName: "deleteBet"
-    });
-    lambdaDataSource.createResolver({
-      typeName: "Mutation",
-      fieldName: "updateBet"
-    });
+    ResolverConfigs.map(config => lambdaDataSource.createResolver(`${config.fieldName}-resolver`, config))
 
-    // Create Policy Statement for Lambda Functions
-    betHandlingLambda.addToRolePolicy(new PolicyStatement({
-      actions: [
-        "dynamodb:Query",
-        "dynamodb:GetItem",
-        "dynamodb:Scan",
-        "dynamodb:PutItem",
-        "dynamodb:UpdateItem",
-        "dynamodb:DeleteItem"
-      ],
-      resources: [
-        "*"
-      ]
-    }));
+    // Grant Dynamo access to Lambda Function
+    betHandlingLambda.role!
+        .addManagedPolicy(iam.ManagedPolicy
+            .fromManagedPolicyName(this, "DynamoManagedPolicy", "AmazonDynamoDBFullAccess"));
 
-    const betsDBTable = new Table(this, "BetsTable", {
-      billingMode: BillingMode.PAY_PER_REQUEST,
+    const betsDBTable = new dynamodb.Table(this, "BetsTable", {
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       partitionKey: {
         name: "id",
-        type: AttributeType.STRING,
+        type: dynamodb.AttributeType.STRING,
       },
     });
-    const cfnTable = betsDBTable.node.defaultChild as CfnTable;
-    cfnTable.overrideLogicalId(`BetsTable${ENV}`);
+    const cfnTable = betsDBTable.node.defaultChild as dynamodb.CfnTable;
+    cfnTable.overrideLogicalId(`BetsTable${AppStage.DEV}`);
 
     // enable the Lambda function to access the DynamoDB table (using IAM)
     betsDBTable.grantReadWriteData(betHandlingLambda);

@@ -1,7 +1,7 @@
-import {App} from "@aws-cdk/core";
-import {ApiServiceStack} from "./stacks/apiServiceStack";
-import {WebStack} from "./stacks/webStack";
-import {EnvironmentProps, getEnvironment, AppStage} from "./config";
+import { App } from "aws-cdk-lib";
+import { ApiServiceStack } from "./stacks/apiServiceStack";
+import { WebStack } from "./stacks/webStack";
+import { EnvironmentProps, getEnvironment, AppStage } from "./config";
 
 const environment: EnvironmentProps = getEnvironment[AppStage.DEV];
 
